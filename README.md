@@ -138,45 +138,42 @@ svc/kubernetes   ClusterIP   10.100.0.1   <none>        443/TCP   1m
 
 Awesome.  Now your `kubectl` is configured!
 
-Next we need to enable the worker nodes to join your cluster.
+## (Optional) Setup autoscaler
 
-## Enable worker nodes to join your cluster
-Download, edit, and apply the AWS authenticator configuration map:
+1.    To download a deployment example file provided by the Cluster Autoscaler project on GitHub, run the following command:
 
-1.) Download the configuration map.
 ```
-curl -O https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-06-05/aws-auth-cm.yaml
+wget https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml
 ```
 
-2.) Open the file with your favorite text editor. Replace the <ARN of instance role (not instance profile)> snippet with the `NodeInstanceRole` value that you recorded in the previous procedure, and save the file.
+2.    Open the downloaded YAML file, and set the EKS cluster name (awsExampleClusterName) and environment variable (us-east-1) based on the following example. Then, save your changes.
 
-This will be the `NodeInstanceRole` output from the nodes stack.
-
-Important
-> Do not modify any other lines in this file.
 ```
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: aws-auth
-  namespace: kube-system
-data:
-  mapRoles: |
-    - rolearn: <ARN of instance role (not instance profile)>
-      username: system:node:{{EC2PrivateDNSName}}
-      groups:
-        - system:bootstrappers
-        - system:nodes
+...
+          command:
+            - ./cluster-autoscaler
+            - --v=4
+            - --stderrthreshold=info
+            - --cloud-provider=aws
+            - --skip-nodes-with-local-storage=false
+            - --expander=least-waste
+            - --node-group-auto-discovery=asg:tag=k8s.io/cluster-autoscaler/enabled,k8s.io/cluster-autoscaler/<awsExampleClusterName>
+          env:
+            - name: AWS_REGION
+              value: us-east-1
+...
 ```
 
-3.) Apply the configuration. This command may take a few minutes to finish.
+3.    To create a Cluster Autoscaler deployment, run the following command:
+
 ```
-kubectl apply -f aws-auth-cm.yaml
+kubectl apply -f cluster-autoscaler-autodiscover.yaml
 ```
 
-4.) Watch the status of your nodes and wait for them to reach the Ready status.
+4.    To check the Cluster Autoscaler deployment logs for deployment errors, run the following command:
+
 ```
-kubectl get nodes --watch
+kubectl logs -f deployment/cluster-autoscaler -n kube-system
 ```
 
 Congratulations - Your new AWS EKS Kubernetes cluster is ready.
