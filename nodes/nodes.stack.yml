@@ -19,7 +19,7 @@ Parameters:
   NodeImageId:
     Type: AWS::EC2::Image::Id
     Description: AMI id for the node instances.
-    Default: ami-dea4d5a1
+    Default: ami-0812df1ae4450c89a
 
   NodeInstanceType:
     Description: EC2 instance type for the node instances
@@ -303,7 +303,7 @@ Resources:
       ToPort: 443
       FromPort: 443
 
-  NodeGroup:
+  AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       DesiredCapacity: !Ref NodeAutoScalingGroupMaxSize
@@ -326,6 +326,51 @@ Resources:
       AutoScalingRollingUpdate:
         MinInstancesInService: '1'
         MaxBatchSize: '1'
+
+  NodeGroup:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      AmiType: "AL2_x86_64"    # Append _GPU if you want GPU
+      ClusterName: !Ref ClusterName
+      DiskSize: 100            # 100 GiB
+      ForceUpdateEnabled: false
+      InstanceTypes:
+        - "t3.2xlarge"
+      Labels: {}
+      NodegroupName: !Ref NodeGroupName
+      NodeRole: !GetAtt NodeInstanceRole.Arn
+      RemoteAccess:
+        Ec2SshKey: !Ref KeyName
+        SourceSecurityGroups:
+          - !Ref NodeSecurityGroup
+      ScalingConfig:
+        DesiredSize: 2
+        MaxSize: 12
+        MinSize: 2
+      Subnets:
+        - Fn::ImportValue:
+            !Sub "${VPCStack}-PublicSubnet1ID"
+        - Fn::ImportValue:
+            !Sub "${VPCStack}-PublicSubnet2ID"
+
+  ClusterAutoScalerPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: ClusterAutoScalerPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "autoscaling:DescribeAutoScalingGroups"
+              - "autoscaling:DescribeAutoScalingInstances"
+              - "autoscaling:DescribeLaunchConfigurations"
+              - "autoscaling:DescribeTags"
+              - "autoscaling:SetDesiredCapacity"
+              - "autoscaling:TerminateInstanceInAutoScalingGroup"
+            Resource: '*'
+      Roles:
+        - !Ref NodeInstanceRole
 
   NodeLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
