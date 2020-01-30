@@ -335,7 +335,7 @@ Resources:
       DiskSize: 100            # 100 GiB
       ForceUpdateEnabled: false
       InstanceTypes:
-        - "t3.2xlarge"
+        - !Ref NodeInstanceType
       Labels: {}
       NodegroupName: !Ref NodeGroupName
       NodeRole: !GetAtt NodeInstanceRole.Arn
@@ -344,9 +344,9 @@ Resources:
         SourceSecurityGroups:
           - !Ref NodeSecurityGroup
       ScalingConfig:
-        DesiredSize: 2
-        MaxSize: 12
-        MinSize: 2
+        DesiredSize: !Ref NodeAutoScalingGroupMinSize
+        MaxSize: !Ref NodeAutoScalingGroupMaxSize
+        MinSize: !Ref NodeAutoScalingGroupMinSize
       Subnets:
         - Fn::ImportValue:
             !Sub "${VPCStack}-PublicSubnet1ID"
